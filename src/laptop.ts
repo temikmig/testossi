@@ -68,8 +68,13 @@ export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new 
 
   // возврат проданного не позднее 14 дней после продажи
   if (from === 'sold' && to === 'in_stock') {
-    const saleDate = [...laptop.history].reverse().find((e) => e.to === 'sold')!.date;
-    if (date.getTime() - saleDate.getTime() >= RETURN_WINDOW_DAYS * MS_PER_DAY) {
+    const saleEntry = [...laptop.history].reverse().find((e) => e.to === 'sold');
+    // статус продан, а продажи в истории нет: считать окно не от чего
+    if (!saleEntry) {
+      throw transitionError(from, to, 'Возврат невозможен: в истории нет даты продажи');
+    }
+    // не позднее 14 дней = 14-й день еще считается
+    if (date.getTime() - saleEntry.date.getTime() > RETURN_WINDOW_DAYS * MS_PER_DAY) {
       throw transitionError(
         from,
         to,

@@ -86,4 +86,21 @@ describe('возврат проданного', () => {
       /Возврат невозможен/,
     );
   });
+
+  it('ровно 14 дней еще можно', () => {
+    const laptop = changeStatus(makeSoldLaptop(soldAt), 'in_stock', daysAfterSale(14));
+    expect(laptop.status).toBe('in_stock');
+  });
+
+  it('14 дней и 1 мс уже нельзя', () => {
+    const justAfter = new Date(daysAfterSale(14).getTime() + 1);
+    expect(() => changeStatus(makeSoldLaptop(soldAt), 'in_stock', justAfter)).toThrow(
+      /Возврат невозможен/,
+    );
+  });
+
+  it('нельзя, если в истории нет даты продажи', () => {
+    const laptop = makeLaptop('sold');
+    expect(() => changeStatus(laptop, 'in_stock')).toThrow(/нет даты продажи/);
+  });
 });

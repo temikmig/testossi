@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changeStatus, Laptop, LaptopStatus, TransitionError } from './laptop';
+import { changeStatus, isTransitionError, Laptop, LaptopStatus } from './laptop';
 
 function makeLaptop(status: LaptopStatus = 'in_stock', history: Laptop['history'] = []): Laptop {
   return { id: 'lp-1', status, history };
@@ -35,13 +35,25 @@ describe('недопустимые переходы', () => {
     ['written_off', 'reserved'],
     ['written_off', 'sold'],
   ])('%s -> %s кидает ошибку', (from, to) => {
-    expect(() => changeStatus(makeLaptop(from), to)).toThrow(TransitionError);
     expect(() => changeStatus(makeLaptop(from), to)).toThrow(/Нельзя сменить статус/);
+  });
+
+  it('в ошибке есть from и to', () => {
+    try {
+      changeStatus(makeLaptop('written_off'), 'sold');
+      expect.fail('ошибка не брошена');
+    } catch (error) {
+      expect(isTransitionError(error)).toBe(true);
+      if (isTransitionError(error)) {
+        expect(error.from).toBe('written_off');
+        expect(error.to).toBe('sold');
+      }
+    }
   });
 
   it('при ошибке статус и история не меняются', () => {
     const laptop = makeLaptop('written_off');
-    expect(() => changeStatus(laptop, 'in_stock')).toThrow(TransitionError);
+    expect(() => changeStatus(laptop, 'in_stock')).toThrow(/Нельзя сменить статус/);
     expect(laptop.status).toBe('written_off');
     expect(laptop.history).toHaveLength(0);
   });

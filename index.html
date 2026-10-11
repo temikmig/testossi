@@ -84,7 +84,7 @@
       function render() {
         el('status').textContent = STATUS_LABELS[laptop.status];
         el('today').textContent = fmt(now);
-        el('actions').replaceChildren(...Object.keys(STATUS_LABELS).map(makeButton));
+        el('actions').replaceChildren(...Object.keys(STATUS_LABELS).map((to) => makeButton(to)));
 
         const rows = laptop.history
           .map(

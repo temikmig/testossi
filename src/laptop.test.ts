@@ -11,8 +11,8 @@ function makeLaptop(status: LaptopStatus = 'in_stock', history: Laptop['history'
   return { id: 'lp-1', status, history };
 }
 
-function makeSoldLaptop(soldAt: Date): Laptop {
-  return makeLaptop('sold', [{ from: 'in_stock', to: 'sold', date: soldAt }]);
+function makeSoldLaptop(date: Date): Laptop {
+  return makeLaptop('sold', [{ from: 'in_stock', to: 'sold', date }]);
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -57,6 +57,13 @@ describe('недопустимые переходы', () => {
     }
   });
 
+  it.each<LaptopStatus>(['in_stock', 'reserved', 'sold', 'written_off'])(
+    '%s в тот же статус нельзя',
+    (status) => {
+      expect(() => changeStatus(makeLaptop(status), status)).toThrow(/Нельзя сменить статус/);
+    },
+  );
+
   it('при ошибке статус и история не меняются', () => {
     const laptop = makeLaptop('written_off');
     expect(() => changeStatus(laptop, 'in_stock')).toThrow(/Нельзя сменить статус/);
@@ -78,6 +85,16 @@ describe('история', () => {
       { from: 'in_stock', to: 'reserved', date: date1 },
       { from: 'reserved', to: 'sold', date: date2 },
     ]);
+  });
+
+  it('хранит копию даты, снаружи историю не переписать', () => {
+    const laptop = makeLaptop('in_stock');
+    const date = new Date('2026-10-05T10:00:00Z');
+
+    changeStatus(laptop, 'reserved', date);
+    date.setFullYear(2020);
+
+    expect(laptop.history[0].date.getFullYear()).toBe(2026);
   });
 });
 
@@ -108,6 +125,13 @@ describe('возврат проданного', () => {
   it('нельзя, если в истории нет даты продажи', () => {
     const laptop = makeLaptop('sold');
     expect(() => changeStatus(laptop, 'in_stock')).toThrow(/нет даты продажи/);
+  });
+
+  it('нельзя вернуть раньше, чем продали', () => {
+    const before = new Date(soldAt.getTime() - DAY_MS);
+    expect(() => changeStatus(makeSoldLaptop(soldAt), 'in_stock', before)).toThrow(
+      /раньше продажи/,
+    );
   });
 });
 

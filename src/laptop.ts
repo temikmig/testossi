@@ -16,6 +16,7 @@ export interface StatusChange {
   date: Date;
 }
 
+/** Ноутбук: текущий статус и вся история его смен. */
 export interface Laptop {
   id: string;
   status: LaptopStatus;
@@ -51,12 +52,15 @@ function transitionError(from: LaptopStatus, to: LaptopStatus, message?: string)
   return error;
 }
 
+/** Проверка, что это ошибка перехода, а не что-то другое. */
 export function isTransitionError(error: unknown): error is TransitionError {
   return error instanceof Error && error.name === 'TransitionError';
 }
 
-// проверка без изменений: вернет ошибку или null
-// нужна странице, чтобы гасить кнопки до клика и не копировать правила переходов
+/**
+ * Проверяет переход, ничего не меняя. Вернет ошибку или null.
+ * Нужна странице, чтобы гасить кнопки до клика и не копировать правила переходов.
+ */
 export function getTransitionError(
   laptop: Laptop,
   to: LaptopStatus,
@@ -75,8 +79,12 @@ export function getTransitionError(
     if (!saleEntry) {
       return transitionError(from, to, 'Возврат невозможен: в истории нет даты продажи');
     }
+    const elapsed = date.getTime() - saleEntry.date.getTime();
+    if (elapsed < 0) {
+      return transitionError(from, to, 'Возврат невозможен: дата возврата раньше продажи');
+    }
     // не позднее 14 дней = 14-й день еще считается
-    if (date.getTime() - saleEntry.date.getTime() > RETURN_WINDOW_DAYS * MS_PER_DAY) {
+    if (elapsed > RETURN_WINDOW_DAYS * MS_PER_DAY) {
       return transitionError(
         from,
         to,
@@ -98,7 +106,8 @@ export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new 
     throw error;
   }
 
-  laptop.history.push({ from: laptop.status, to, date });
+  // копия даты, иначе вызывающий код сможет переписать историю задним числом
+  laptop.history.push({ from: laptop.status, to, date: new Date(date.getTime()) });
   laptop.status = to;
   return laptop;
 }

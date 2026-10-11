@@ -20,7 +20,9 @@ npm run typecheck
 
 ## Демо-страница
 
-Сверх задания, чтобы логику было видно глазами.
+https://temikmig.github.io/testossi/
+
+Сверх задания, чтобы логику было видно глазами. Локально:
 
 ```bash
 npm run demo

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { changeStatus, isTransitionError, Laptop, LaptopStatus } from './laptop';
+import {
+  changeStatus,
+  getTransitionError,
+  isTransitionError,
+  Laptop,
+  LaptopStatus,
+} from './laptop';
 
 function makeLaptop(status: LaptopStatus = 'in_stock', history: Laptop['history'] = []): Laptop {
   return { id: 'lp-1', status, history };
@@ -102,5 +108,32 @@ describe('возврат проданного', () => {
   it('нельзя, если в истории нет даты продажи', () => {
     const laptop = makeLaptop('sold');
     expect(() => changeStatus(laptop, 'in_stock')).toThrow(/нет даты продажи/);
+  });
+});
+
+describe('getTransitionError', () => {
+  it('для разрешенного перехода возвращает null', () => {
+    expect(getTransitionError(makeLaptop('in_stock'), 'reserved')).toBeNull();
+  });
+
+  it('для запрещенного возвращает ошибку с причиной', () => {
+    const error = getTransitionError(makeLaptop('written_off'), 'sold');
+    expect(error?.message).toMatch(/Нельзя сменить статус/);
+    expect(error?.from).toBe('written_off');
+  });
+
+  it('учитывает окно возврата', () => {
+    const laptop = makeSoldLaptop(soldAt);
+    expect(getTransitionError(laptop, 'in_stock', daysAfterSale(14))).toBeNull();
+    expect(getTransitionError(laptop, 'in_stock', daysAfterSale(15))?.message).toMatch(
+      /Возврат невозможен/,
+    );
+  });
+
+  it('ничего не меняет', () => {
+    const laptop = makeLaptop('in_stock');
+    getTransitionError(laptop, 'reserved');
+    expect(laptop.status).toBe('in_stock');
+    expect(laptop.history).toHaveLength(0);
   });
 });

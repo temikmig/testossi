@@ -55,15 +55,17 @@ export function isTransitionError(error: unknown): error is TransitionError {
   return error instanceof Error && error.name === 'TransitionError';
 }
 
-/**
- * Меняет статус ноутбука и пишет изменение в историю.
- * Кидает ошибку, если переход запрещен.
- */
-export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new Date()): Laptop {
+// проверка без изменений: вернет ошибку или null
+// нужна странице, чтобы гасить кнопки до клика и не копировать правила переходов
+export function getTransitionError(
+  laptop: Laptop,
+  to: LaptopStatus,
+  date: Date = new Date(),
+): TransitionError | null {
   const from = laptop.status;
 
   if (!ALLOWED_TRANSITIONS[from].includes(to)) {
-    throw transitionError(from, to);
+    return transitionError(from, to);
   }
 
   // возврат проданного не позднее 14 дней после продажи
@@ -71,11 +73,11 @@ export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new 
     const saleEntry = [...laptop.history].reverse().find((e) => e.to === 'sold');
     // статус продан, а продажи в истории нет: считать окно не от чего
     if (!saleEntry) {
-      throw transitionError(from, to, 'Возврат невозможен: в истории нет даты продажи');
+      return transitionError(from, to, 'Возврат невозможен: в истории нет даты продажи');
     }
     // не позднее 14 дней = 14-й день еще считается
     if (date.getTime() - saleEntry.date.getTime() > RETURN_WINDOW_DAYS * MS_PER_DAY) {
-      throw transitionError(
+      return transitionError(
         from,
         to,
         `Возврат невозможен: прошло больше ${RETURN_WINDOW_DAYS} дней с продажи`,
@@ -83,7 +85,20 @@ export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new 
     }
   }
 
+  return null;
+}
+
+/**
+ * Меняет статус ноутбука и пишет изменение в историю.
+ * Кидает ошибку, если переход запрещен.
+ */
+export function changeStatus(laptop: Laptop, to: LaptopStatus, date: Date = new Date()): Laptop {
+  const error = getTransitionError(laptop, to, date);
+  if (error) {
+    throw error;
+  }
+
+  laptop.history.push({ from: laptop.status, to, date });
   laptop.status = to;
-  laptop.history.push({ from, to, date });
   return laptop;
 }

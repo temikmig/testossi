@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Статусы ноутбука</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 0 16px;
+        line-height: 1.5;
+      }
+      button {
+        font: inherit;
+        padding: 3px 10px;
+        margin-right: 4px;
+      }
+      button:disabled {
+        color: #999;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 4px 10px;
+        text-align: left;
+      }
+      #error {
+        color: #c00;
+        min-height: 1.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Статусы ноутбука</h1>
+    <p>Демо к тестовому заданию. Правила переходов берутся из src/laptop.ts.</p>
+
+    <p>Статус: <b id="status"></b></p>
+
+    <p>
+      Дата: <span id="today"></span>
+      <button data-shift="1">+1 день</button>
+      <button data-shift="7">+7 дней</button>
+      <button id="reset">сброс</button>
+    </p>
+
+    <p>Сменить на: <span id="actions"></span></p>
+    <p id="error"></p>
+
+    <h2>История</h2>
+    <div id="history"></div>
+
+    <script type="module">
+      import { STATUS_LABELS, changeStatus, getTransitionError } from './dist/laptop.js';
+
+      const START = new Date();
+      let laptop, now;
+
+      const el = (id) => document.getElementById(id);
+      const fmt = (d) => d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+
+      function reset() {
+        laptop = { id: 'lp-1', status: 'in_stock', history: [] };
+        now = new Date(START);
+        el('error').textContent = '';
+        console.log('сброс, статус:', STATUS_LABELS[laptop.status], '| дата:', fmt(now));
+        render();
+      }
+
+      // в laptop.ts логов нет намеренно, это дело страницы
+      function logHistory() {
+        console.table(
+          laptop.history.map((e) => ({
+            было: STATUS_LABELS[e.from],
+            стало: STATUS_LABELS[e.to],
+            когда: fmt(e.date),
+          })),
+        );
+      }
+
+      function render() {
+        el('status').textContent = STATUS_LABELS[laptop.status];
+        el('today').textContent = fmt(now);
+        el('actions').replaceChildren(...Object.keys(STATUS_LABELS).map(makeButton));
+
+        const rows = laptop.history
+          .map(
+            (e) =>
+              `<tr><td>${STATUS_LABELS[e.from]}</td><td>${STATUS_LABELS[e.to]}</td><td>${fmt(e.date)}</td></tr>`,
+          )
+          .join('');
+        el('history').innerHTML = rows
+          ? `<table><tr><th>было</th><th>стало</th><th>когда</th></tr>${rows}</table>`
+          : '<p>пусто</p>';
+      }
+
+      function makeButton(to) {
+        // причину запрета берем из той же функции, что гасит кнопку
+        const error = to === laptop.status ? null : getTransitionError(laptop, to, now);
+        const button = document.createElement('button');
+        button.textContent = STATUS_LABELS[to];
+        button.disabled = to === laptop.status || error !== null;
+        button.onclick = () => {
+          const from = laptop.status;
+          changeStatus(laptop, to, now);
+          console.log(`${STATUS_LABELS[from]} -> ${STATUS_LABELS[to]}`, '|', fmt(now));
+          logHistory();
+          el('error').textContent = '';
+          render();
+        };
+        button.onmouseenter = () => {
+          el('error').textContent = error ? error.message : '';
+          if (error) console.warn('нельзя:', error.message);
+        };
+        button.onmouseleave = () => (el('error').textContent = '');
+        return button;
+      }
+
+      document.querySelectorAll('[data-shift]').forEach((button) => {
+        button.onclick = () => {
+          now = new Date(now.getTime() + Number(button.dataset.shift) * 86400000);
+          console.log('дата сдвинута на +' + button.dataset.shift + ', теперь', fmt(now));
+          render();
+        };
+      });
+      el('reset').onclick = reset;
+
+      console.log('демо статусов ноутбука, правила переходов из src/laptop.ts');
+      reset();
+    </script>
+  </body>
+</html>

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc src/laptop.ts --ignoreConfig --outDir dist --target es2022 --module es2022 --strict",
+    "demo": "npm run build && npx --yes serve . -p 8000"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
